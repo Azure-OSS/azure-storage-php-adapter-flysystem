@@ -284,7 +284,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Pu
             $config->get("expires_on"),
             $config->get("identifier"),
             $config->get("ip_range"),
-            [BlobSASPermission::READ],
+            $config->get("permissions", [BlobSASPermission::READ]),
             $config->get("preauthorized_agent_object_id"),
             $config->get("protocol"),
             $config->get("snapshot_time"),
