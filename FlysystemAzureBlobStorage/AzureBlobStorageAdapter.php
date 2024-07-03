@@ -7,6 +7,11 @@ namespace AzureOss\FlysystemAzureBlobStorage;
 use AzureOss\Storage\Blob\ContainerClient;
 use AzureOss\Storage\Blob\Options\ListBlobsOptions;
 use AzureOss\Storage\Blob\Options\UploadBlockBlobOptions;
+use AzureOss\Storage\Common\SAS\BlobSASPermission;
+use AzureOss\Storage\Common\SAS\BlobSASSignatureValues;
+use AzureOss\Storage\Common\SAS\SasIpRange;
+use AzureOss\Storage\Common\SAS\SasProtocol;
+use AzureOss\Storage\Common\SAS\SharedAccessSignatureHelper;
 use DateTimeInterface;
 use League\Flysystem\CalculateChecksumFromStream;
 use League\Flysystem\ChecksumProvider;
@@ -264,11 +269,42 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Pu
 
     public function publicUrl(string $path, Config $config): string
     {
-        return "TODO";
+        $url = $this->containerClient->getBlobClient($path)->getUrl();
+
+        $sasValues = new BlobSASSignatureValues(
+            $path,
+            $config->get("cache_control"),
+            $config->get("container_name"),
+            $config->get("content_disposition"),
+            $config->get("content_encoding"),
+            $config->get("content_language"),
+            $config->get("content_type"),
+            $config->get("correlation_id"),
+            $config->get("encryption_scope"),
+            $config->get("expires_on"),
+            $config->get("identifier"),
+            $config->get("ip_range"),
+            [BlobSASPermission::READ],
+            $config->get("preauthorized_agent_object_id"),
+            $config->get("protocol"),
+            $config->get("snapshot_time"),
+            $config->get("starts_on"),
+            $config->get("version"),
+            $config->get("version_id"),
+        );
+
+        $sas = SharedAccessSignatureHelper::generateBlobSASQueryParameters(
+            $sasValues,
+            $this->containerClient->sharedKeyCredentials,
+        );
+
+        return sprintf("%s?%s", $url, $sas);
     }
 
     public function temporaryUrl(string $path, DateTimeInterface $expiresAt, Config $config): string
     {
-        return "TODO";
+        $config->withSetting("expires_on", $expiresAt);
+
+        return $this->publicUrl($path, $config);
     }
 }
