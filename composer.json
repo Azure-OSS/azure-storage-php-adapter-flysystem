@@ -1,0 +1,40 @@
+{
+    "name": "azure-oss/flysystem-azure-blob-storage",
+    "type": "library",
+    "version": "0.0.0",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Brecht Vermeersch",
+            "email": "brechtvermeersch@outlook.be"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "AzureOss\\FlysystemAzureBlobStorage\\": "FlysystemAzureBlobStorage/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AzureOss\\FlysystemAzureBlobStorage\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.1",
+        "league/flysystem": "^3.28",
+        "azure-oss/storage": "@dev"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.16",
+        "phpunit/phpunit": "^10.5",
+        "phpstan/phpstan": "^1.11",
+        "league/flysystem-adapter-test-utilities": "^3.28"
+    },
+    "minimum-stability": "dev",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../azure-storage-php"
+        }
+    ]
+}
