@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace AzureOss\FlysystemAzureBlobStorage\Tests;
 
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
-use AzureOss\Storage\Blob\BlobServiceClient;
-use AzureOss\Storage\Blob\ContainerClient;
+use AzureOss\Storage\Blob\Clients\BlobServiceClient;
+use AzureOss\Storage\Blob\Clients\ContainerClient;
 use League\Flysystem\AdapterTestUtilities\FilesystemAdapterTestCase as TestCase;
 use League\Flysystem\Config;
 use League\Flysystem\FilesystemAdapter;
@@ -32,13 +32,6 @@ class AzureBlobStorageTest extends TestCase
         return BlobServiceClient::fromConnectionString($connectionString)->getContainerClient('flysystem');
     }
 
-    public function clearStorage(): void
-    {
-        $containerClient = self::createContainerClient();
-        $containerClient->deleteIfExists();
-        $containerClient->create();
-    }
-
     public function overwriting_a_file(): void
     {
         $this->runScenario(
@@ -50,7 +43,7 @@ class AzureBlobStorageTest extends TestCase
 
                 $contents = $adapter->read('path.txt');
                 $this->assertEquals('new contents', $contents);
-            }
+            },
         );
     }
 
@@ -76,7 +69,7 @@ class AzureBlobStorageTest extends TestCase
             $adapter->write(
                 'source.txt',
                 'contents to be copied',
-                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC])
+                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC]),
             );
 
             $adapter->copy('source.txt', 'destination.txt', new Config());
@@ -94,16 +87,16 @@ class AzureBlobStorageTest extends TestCase
             $adapter->write(
                 'source.txt',
                 'contents to be copied',
-                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC])
+                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC]),
             );
             $adapter->move('source.txt', 'destination.txt', new Config());
             $this->assertFalse(
                 $adapter->fileExists('source.txt'),
-                'After moving a file should no longer exist in the original location.'
+                'After moving a file should no longer exist in the original location.',
             );
             $this->assertTrue(
                 $adapter->fileExists('destination.txt'),
-                'After moving, a file should be present at the new location.'
+                'After moving, a file should be present at the new location.',
             );
             $this->assertEquals('contents to be copied', $adapter->read('destination.txt'));
         });
@@ -116,7 +109,7 @@ class AzureBlobStorageTest extends TestCase
             $adapter->write(
                 'source.txt',
                 'contents to be copied',
-                new Config()
+                new Config(),
             );
 
             $adapter->copy('source.txt', 'destination.txt', new Config());

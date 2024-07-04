@@ -24,7 +24,7 @@ The connection string can be obtained from the azure portal.
 ```php
 <?php
 
-use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\src\AzureBlobStorageAdapter;
 use AzureOss\Storage\Blob\BlobServiceClient;
 use League\Flysystem\Filesystem;
 

@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace AzureOss\FlysystemAzureBlobStorage;
 
-use AzureOss\Storage\Blob\ContainerClient;
+use AzureOss\Storage\Blob\Clients\ContainerClient;
 use AzureOss\Storage\Blob\Options\ListBlobsOptions;
 use AzureOss\Storage\Blob\Options\UploadBlockBlobOptions;
-use AzureOss\Storage\Common\SAS\BlobSASPermission;
-use AzureOss\Storage\Common\SAS\BlobSASSignatureValues;
-use AzureOss\Storage\Common\SAS\SasIpRange;
-use AzureOss\Storage\Common\SAS\SasProtocol;
-use AzureOss\Storage\Common\SAS\SharedAccessSignatureHelper;
-use DateTimeInterface;
-use League\Flysystem\CalculateChecksumFromStream;
-use League\Flysystem\ChecksumProvider;
+use AzureOss\Storage\Blob\SAS\BlobSASPermissions;
+use AzureOss\Storage\Blob\SAS\BlobSASQueryParameters;
+use AzureOss\Storage\Blob\SAS\BlobSASSignatureValues;
+use AzureOss\Storage\Common\SAS\SASProtocol;
 use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
@@ -29,15 +25,12 @@ use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToRetrieveMetadata;
 use League\Flysystem\UnableToSetVisibility;
 use League\Flysystem\UnableToWriteFile;
-use League\Flysystem\UrlGeneration\PublicUrlGenerator;
 use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
 
-class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, PublicUrlGenerator, TemporaryUrlGenerator
+class AzureBlobStorageAdapter implements FilesystemAdapter, TemporaryUrlGenerator
 {
-    use CalculateChecksumFromStream;
-
     private readonly MimeTypeDetector $mimeTypeDetector;
 
     public function __construct(
@@ -62,7 +55,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Pu
             $options = new ListBlobsOptions(
                 prefix: $this->getPrefix($path),
                 maxResults: 1,
-                delimiter: "/"
+                delimiter: "/",
             );
 
             $response = $this->containerClient->listBlobs($options);
@@ -200,7 +193,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Pu
             $path,
             fileSize: $response->contentLength,
             lastModified: $response->lastModified->getTimestamp(),
-            mimeType: $response->contentType
+            mimeType: $response->contentType,
         );
     }
 
@@ -262,49 +255,31 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Pu
         return $path === "" ? null : rtrim($path, "/") . "/";
     }
 
-    public function checksum(string $path, Config $config): string
-    {
-        return $this->calculateChecksumFromStream($path, $config);
-    }
-
-    public function publicUrl(string $path, Config $config): string
+    public function temporaryUrl(string $path, \DateTimeInterface $expiresAt, Config $config): string
     {
         $url = $this->containerClient->getBlobClient($path)->getUrl();
 
-        $sasValues = new BlobSASSignatureValues(
-            $path,
-            $config->get("cache_control"),
-            $config->get("container_name"),
-            $config->get("content_disposition"),
-            $config->get("content_encoding"),
-            $config->get("content_language"),
-            $config->get("content_type"),
-            $config->get("correlation_id"),
-            $config->get("encryption_scope"),
-            $config->get("expires_on"),
-            $config->get("identifier"),
-            $config->get("ip_range"),
-            $config->get("permissions", [BlobSASPermission::READ]),
-            $config->get("preauthorized_agent_object_id"),
-            $config->get("protocol"),
-            $config->get("snapshot_time"),
-            $config->get("starts_on"),
-            $config->get("version"),
-            $config->get("version_id"),
+        $values = new BlobSASSignatureValues(
+            containerName: $this->containerClient->containerName,
+            expiresOn: $expiresAt,
+            blobName: $path,
+            permissions: $config->get("permissions", (string) new BlobSASPermissions(read: true)),
+            identifier: $config->get("identifier"),
+            startsOn: $config->get("starts_on"),
+            cacheControl: $config->get("cache_control"),
+            contentDisposition: $config->get("content_disposition"),
+            contentEncoding: $config->get("content_encoding"),
+            contentLanguage: $config->get("content_language"),
+            contentType: $config->get("content_type"),
+            encryptionScope: $config->get("encryption_scope"),
+            ipRange: $config->get("ip_range"),
+            snapshotTime: $config->get("snapshot_time"),
+            protocol: $config->get("protocol", SASProtocol::HTTPS_AND_HTTP),
+            version: $config->get("version"),
         );
 
-        $sas = SharedAccessSignatureHelper::generateBlobSASQueryParameters(
-            $sasValues,
-            $this->containerClient->sharedKeyCredentials,
-        );
+        $sas = BlobSASQueryParameters::generate($values, $this->containerClient->sharedKeyCredentials);
 
         return sprintf("%s?%s", $url, $sas);
-    }
-
-    public function temporaryUrl(string $path, DateTimeInterface $expiresAt, Config $config): string
-    {
-        $config->withSetting("expires_on", $expiresAt);
-
-        return $this->publicUrl($path, $config);
     }
 }

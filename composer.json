@@ -11,7 +11,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "AzureOss\\FlysystemAzureBlobStorage\\": "FlysystemAzureBlobStorage/"
+            "AzureOss\\FlysystemAzureBlobStorage\\": "src/"
         }
     },
     "autoload-dev": {
