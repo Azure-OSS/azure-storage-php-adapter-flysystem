@@ -10,7 +10,9 @@ use AzureOss\Storage\Blob\BlobServiceClient;
 use League\Flysystem\AdapterTestUtilities\FilesystemAdapterTestCase;
 use League\Flysystem\Config;
 use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\UnableToSetVisibility;
 use League\Flysystem\Visibility;
+use PHPUnit\Framework\Attributes\Test;
 
 class AzureBlobStorageTest extends FilesystemAdapterTestCase
 {
@@ -162,5 +164,30 @@ class AzureBlobStorageTest extends FilesystemAdapterTestCase
             $this->assertTrue($adapter->directoryExists('test'));
             $this->assertFalse($adapter->fileExists('test'));
         });
+    }
+
+    #[Test]
+    public function setting_visibility_can_be_ignored_not_supported(): void
+    {
+        $this->givenWeHaveAnExistingFile('some-file.md');
+        $this->expectNotToPerformAssertions();
+
+        $adapter = new AzureBlobStorageAdapter(
+            self::createContainerClient(),
+            visibilityHandling: AzureBlobStorageAdapter::ON_VISIBILITY_IGNORE,
+        );
+
+        $adapter->setVisibility('some-file.md', 'public');
+    }
+
+    #[Test]
+    public function setting_visibility_causes_errors(): void
+    {
+        $this->givenWeHaveAnExistingFile('some-file.md');
+        $adapter = $this->adapter();
+
+        $this->expectException(UnableToSetVisibility::class);
+
+        $adapter->setVisibility('some-file.md', 'public');
     }
 }

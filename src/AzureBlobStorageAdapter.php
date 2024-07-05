@@ -33,6 +33,9 @@ use League\MimeTypeDetection\MimeTypeDetector;
 
 class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator
 {
+    public const ON_VISIBILITY_THROW_ERROR = 'throw';
+    public const ON_VISIBILITY_IGNORE = 'ignore';
+
     private readonly MimeTypeDetector $mimeTypeDetector;
     private readonly PathPrefixer $prefixer;
 
@@ -40,6 +43,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
         private readonly BlobContainerClient $containerClient,
         string $prefix = "",
         ?MimeTypeDetector $mimeTypeDetector = null,
+        private readonly string $visibilityHandling = self::ON_VISIBILITY_THROW_ERROR,
     ) {
         $this->prefixer = new PathPrefixer($prefix);
         $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector();
@@ -165,7 +169,9 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
 
     public function setVisibility(string $path, string $visibility): void
     {
-        throw UnableToSetVisibility::atLocation($path, "Azure does not support this operation.");
+        if ($this->visibilityHandling === self::ON_VISIBILITY_THROW_ERROR) {
+            throw UnableToSetVisibility::atLocation($path, 'Azure does not support this operation.');
+        }
     }
 
     public function visibility(string $path): FileAttributes
