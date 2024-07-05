@@ -26,6 +26,7 @@ class AzureBlobStorageTest extends FilesystemAdapterTestCase
 
         return new AzureBlobStorageAdapter(
             self::createContainerClient(),
+            'flysystem',
         );
     }
 

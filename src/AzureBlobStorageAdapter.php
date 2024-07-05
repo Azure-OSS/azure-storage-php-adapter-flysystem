@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AzureOss\FlysystemAzureBlobStorage;
 
 use AzureOss\Storage\Blob\BlobContainerClient;
-use AzureOss\Storage\Blob\BlobServiceClient;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
@@ -16,6 +15,7 @@ use League\Flysystem\Config;
 use League\Flysystem\DirectoryAttributes;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\PathPrefixer;
 use League\Flysystem\UnableToCheckExistence;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToDeleteDirectory;
@@ -34,11 +34,14 @@ use League\MimeTypeDetection\MimeTypeDetector;
 class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator
 {
     private readonly MimeTypeDetector $mimeTypeDetector;
+    private readonly PathPrefixer $prefixer;
 
     public function __construct(
         private readonly BlobContainerClient $containerClient,
+        string $prefix = "",
         ?MimeTypeDetector $mimeTypeDetector = null,
     ) {
+        $this->prefixer = new PathPrefixer($prefix);
         $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector();
     }
 
@@ -46,7 +49,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     {
         try {
             return $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->exists();
         } catch(\Throwable $e) {
             throw UnableToCheckExistence::forLocation($path, $e);
@@ -82,6 +85,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     private function upload(string $path, $contents): void
     {
         try {
+            $path = $this->prefixer->prefixPath($path);
             $mimetype = $this->mimeTypeDetector->detectMimetype($path, $contents);
 
             $options = new UploadBlobOptions(
@@ -100,7 +104,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     {
         try {
             $result = $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->downloadStreaming();
 
             return $result->content->getContents();
@@ -113,7 +117,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     {
         try {
             $result = $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->downloadStreaming();
 
             $resource = $result->content->detach();
@@ -132,7 +136,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     {
         try {
             $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->deleteIfExists();
         } catch (\Throwable $e) {
             throw UnableToDeleteFile::atLocation($path, previous: $e);
@@ -145,7 +149,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
             foreach ($this->listContents($path, true) as $item) {
                 if ($item instanceof FileAttributes) {
                     $this->containerClient
-                        ->getBlobClient($item->path())
+                        ->getBlobClient($this->prefixer->prefixPath($item->path()))
                         ->delete();
                 }
             }
@@ -198,6 +202,8 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
 
     private function fetchMetadata(string $path): FileAttributes
     {
+        $path = $this->prefixer->prefixPath($path);
+
         $properties = $this->containerClient
             ->getBlobClient($path)
             ->getProperties();
@@ -208,18 +214,18 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     public function listContents(string $path, bool $deep): iterable
     {
         try {
-            $prefix = $path === "" ? null : ltrim($path, "/") . "/";
+            $prefix = $this->prefixer->prefixDirectoryPath($path);
 
             if ($deep) {
                 foreach ($this->containerClient->getBlobs($prefix) as $item) {
-                    yield $this->normalizeBlob($item->name, $item->properties);
+                    yield $this->normalizeBlob($this->prefixer->stripPrefix($item->name), $item->properties);
                 }
             } else {
                 foreach ($this->containerClient->getBlobsByHierarchy($prefix) as $item) {
                     if ($item instanceof Blob) {
-                        yield $this->normalizeBlob($item->name, $item->properties);
+                        yield $this->normalizeBlob($this->prefixer->stripPrefix($item->name), $item->properties);
                     } else {
-                        yield new DirectoryAttributes($item->name);
+                        yield new DirectoryAttributes($this->prefixer->stripPrefix($item->name));
                     }
                 }
             }
@@ -251,8 +257,8 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     public function copy(string $source, string $destination, Config $config): void
     {
         try {
-            $sourceBlobClient = $this->containerClient->getBlobClient($source);
-            $targetBlobClient = $this->containerClient->getBlobClient($destination);
+            $sourceBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($source));
+            $targetBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($destination));
 
             $targetBlobClient->copyFromUri($sourceBlobClient->uri);
         } catch (\Throwable $e) {
@@ -267,10 +273,11 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
             ->setPermissions("r");
 
         $sas = $this->containerClient
-            ->getBlobClient($path)
+            ->getBlobClient($this->prefixer->prefixPath($path))
             ->generateSasUri($sasBuilder);
 
         return (string) $sas;
+
     }
 
     public function checksum(string $path, Config $config): string
@@ -283,7 +290,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
 
         try {
             $properties = $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->getProperties();
 
             return bin2hex(base64_decode($properties->contentMD5));
