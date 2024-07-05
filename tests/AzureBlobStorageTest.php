@@ -5,23 +5,31 @@ declare(strict_types=1);
 namespace AzureOss\FlysystemAzureBlobStorage\Tests;
 
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
-use AzureOss\Storage\Blob\Clients\BlobServiceClient;
-use AzureOss\Storage\Blob\Clients\ContainerClient;
-use League\Flysystem\AdapterTestUtilities\FilesystemAdapterTestCase as TestCase;
+use AzureOss\Storage\Blob\BlobContainerClient;
+use AzureOss\Storage\Blob\BlobServiceClient;
+use League\Flysystem\AdapterTestUtilities\FilesystemAdapterTestCase;
 use League\Flysystem\Config;
 use League\Flysystem\FilesystemAdapter;
 use League\Flysystem\Visibility;
 
-class AzureBlobStorageTest extends TestCase
+class AzureBlobStorageTest extends FilesystemAdapterTestCase
 {
     public const CONTAINER_NAME = 'flysystem';
 
     protected static function createFilesystemAdapter(): FilesystemAdapter
     {
-        return new AzureBlobStorageAdapter(self::createContainerClient());
+        $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
+
+        if (empty($connectionString)) {
+            self::markTestSkipped('FLYSYSTEM_AZURE_CONNECTION_STRING is not provided.');
+        }
+
+        return new AzureBlobStorageAdapter(
+            self::createContainerClient(),
+        );
     }
 
-    private static function createContainerClient(): ContainerClient
+    private static function createContainerClient(): BlobContainerClient
     {
         $connectionString = getenv('FLYSYSTEM_AZURE_CONNECTION_STRING');
 
@@ -32,11 +40,17 @@ class AzureBlobStorageTest extends TestCase
         return BlobServiceClient::fromConnectionString($connectionString)->getContainerClient('flysystem');
     }
 
+    public static function setUpBeforeClass(): void
+    {
+        self::createContainerClient()->deleteIfExists();
+        self::createContainerClient()->create();
+    }
+
     public function overwriting_a_file(): void
     {
         $this->runScenario(
             function () {
-                $this->givenWeHaveAnExistingFile('path.txt', 'contents');
+                $this->givenWeHaveAnExistingFile('path.txt');
                 $adapter = $this->adapter();
 
                 $adapter->write('path.txt', 'new contents', new Config());
