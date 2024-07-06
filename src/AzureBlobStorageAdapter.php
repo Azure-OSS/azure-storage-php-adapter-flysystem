@@ -7,6 +7,7 @@ namespace AzureOss\FlysystemAzureBlobStorage;
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
+use AzureOss\Storage\Blob\Models\GetBlobsOptions;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
 use AzureOss\Storage\Blob\Sas\BlobSasBuilder;
 use League\Flysystem\ChecksumAlgoIsNotSupported;
@@ -63,7 +64,9 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
     public function directoryExists(string $path): bool
     {
         try {
-            foreach($this->listContents($path, false) as $ignored) {
+            $options = new GetBlobsOptions(pageSize: 1);
+
+            foreach($this->containerClient->getBlobs($this->prefixer->prefixDirectoryPath($path), $options) as $ignored) {
                 return true;
             };
 
