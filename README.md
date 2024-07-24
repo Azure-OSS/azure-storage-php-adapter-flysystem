@@ -1,41 +1,44 @@
-# Flysystem adapter for
+# Azure Storage PHP Adapter Flysystem
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/azure-oss/flysystem-azure-blob-storage?style=flat-square)](https://packagist.org/packages/azure-oss/flysystem-azure-blob-storage)
-[![Total Downloads](https://img.shields.io/packagist/dt/azure-oss/flysystem-azure-blob-storage?style=flat-square)](https://packagist.org/packages/azure-oss/flysystem-azure-blob-storage)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/azure-oss/storage-blob-flysystem.svg)](https://packagist.org/packages/azure-oss/storage-blob-flysystem)
+[![Packagist Downloads](https://img.shields.io/packagist/dm/azure-oss/storage-blob-flysystem)](https://packagist.org/packages/azure-oss/storage-blob-flysystem)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/azure-oss/azure-storage-php-adapter-flysystem/tests.yml?branch=main)](https://github.com/azure-oss/azure-storage-php-adapter-flysystem/actions)
 
-## Installation
+## Minimum Requirements
 
-```bash
-composer require azure-oss/flysystem-azure-blob-storage
+* PHP 8.1 or above
+
+## Install
+
+```shell
+composer require azure-oss/storage-blob-flysystem
 ```
 
-## Notice
+## Documentation
 
-It’s important to know this adapter does not fully comply with the adapter contract. The difference(s) is/are:
+For more information visit the documentation at [azure-oss.github.io](https://azure-oss.github.io).
 
-* Visibility setting or retrieving is not supported.
-* Mimetypes are always resolved, where others do not.
-* Directory creation is not supported in any way.
+## Support
 
-## Usage
+Do you need help, do you want to talk to us, or is there anything else?
 
-The connection string can be obtained from the azure portal.
+Join us at:
 
-```php
-<?php
+* [Github Discussions](https://github.com/Azure-OSS/azure-storage-php/discussions)
+* [Slack](https://join.slack.com/t/azure-oss/shared_invite/zt-2lw5knpon-mqPM_LIuRZUoH02AY8uiYw)
 
-use AzureOss\src\AzureBlobStorageAdapter;
-use AzureOss\Storage\Blob\BlobServiceClient;
-use League\Flysystem\Filesystem;
+## License
 
-include __DIR__.'/vendor/autoload.php';
+Azure-Storage-PHP-Adapter-Flysystem is released under the MIT License. See [LICENSE](./LICENSE) for details.
 
-$client = BlobServiceClient::fromConnectionString('connectionString')->getContainerClient('container-name')
-$adapter = new AzureBlobStorageAdapter(
-    $client,
-    'container-name',
-);
-$filesystem = new Filesystem($adapter);
-```
+## PHP Version Support Policy
 
-## Laravel usage
+The maintainers of this package add support for a PHP version following its initial release and drop support for a PHP version once it has reached its end of security support.
+
+## Backward compatibility promise
+
+Azure-Storage-PHP is using Semver. This means that versions are tagged with MAJOR.MINOR.PATCH. Only a new major version will be allowed to break backward compatibility (BC).
+
+Classes marked as @experimental or @internal are not included in our backward compatibility promise. You are also not guaranteed that the value returned from a method is always the same. You are guaranteed that the data type will not change.
+
+PHP 8 introduced named arguments, which increased the cost and reduces flexibility for package maintainers. The names of the arguments for methods in the library are not included in our BC promise.
