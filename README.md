@@ -16,7 +16,7 @@ composer require azure-oss/storage-blob-flysystem
 
 ## Documentation
 
-For more information visit the documentation at [azure-oss.github.io](https://azure-oss.github.io).
+For more information visit the documentation at [azure-oss.github.io](https://azure-oss.github.io/storage/flysystem/).
 
 ## Support
 
