@@ -69,7 +69,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
             foreach (
                 $this->containerClient->getBlobs(
                     $this->prefixer->prefixDirectoryPath($path),
-                    $options
+                    $options,
                 ) as $ignored
             ) {
                 return true;
@@ -290,7 +290,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
             ->getBlobClient($this->prefixer->prefixPath($path))
             ->generateSasUri($sasBuilder);
 
-        return (string)$sas;
+        return (string) $sas;
     }
 
     public function checksum(string $path, Config $config): string
