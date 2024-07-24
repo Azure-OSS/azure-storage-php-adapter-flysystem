@@ -32,7 +32,7 @@ use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
 
-class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator
+final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator
 {
     public const ON_VISIBILITY_THROW_ERROR = 'throw';
     public const ON_VISIBILITY_IGNORE = 'ignore';
@@ -56,7 +56,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
             return $this->containerClient
                 ->getBlobClient($this->prefixer->prefixPath($path))
                 ->exists();
-        } catch(\Throwable $e) {
+        } catch (\Throwable $e) {
             throw UnableToCheckExistence::forLocation($path, $e);
         }
     }
@@ -66,7 +66,12 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
         try {
             $options = new GetBlobsOptions(pageSize: 1);
 
-            foreach($this->containerClient->getBlobs($this->prefixer->prefixDirectoryPath($path), $options) as $ignored) {
+            foreach (
+                $this->containerClient->getBlobs(
+                    $this->prefixer->prefixDirectoryPath($path),
+                    $options
+                ) as $ignored
+            ) {
                 return true;
             };
 
@@ -129,7 +134,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
 
             $resource = $result->content->detach();
 
-            if($resource === null) {
+            if ($resource === null) {
                 throw new \Exception("Should not happen");
             }
 
@@ -285,8 +290,7 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
             ->getBlobClient($this->prefixer->prefixPath($path))
             ->generateSasUri($sasBuilder);
 
-        return (string) $sas;
-
+        return (string)$sas;
     }
 
     public function checksum(string $path, Config $config): string
