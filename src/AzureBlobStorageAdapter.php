@@ -277,9 +277,14 @@ class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, Te
 
     public function temporaryUrl(string $path, \DateTimeInterface $expiresAt, Config $config): string
     {
+        $permissions = $config->get("permissions", "r");
+        if (! is_string($permissions)) {
+            throw new \InvalidArgumentException("permissions must be a string!");
+        }
+
         $sasBuilder = BlobSasBuilder::new()
             ->setExpiresOn($expiresAt)
-            ->setPermissions("r");
+            ->setPermissions($permissions);
 
         $sas = $this->containerClient
             ->getBlobClient($this->prefixer->prefixPath($path))
