@@ -311,7 +311,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
                 ->getBlobClient($this->prefixer->prefixPath($path))
                 ->getProperties();
 
-            return bin2hex(base64_decode($properties->contentMD5));
+            return $properties->contentMD5;
         } catch (\Throwable $e) {
             throw new UnableToProvideChecksum($e->getMessage(), $path, $e);
         }
