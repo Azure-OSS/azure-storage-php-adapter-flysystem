@@ -283,7 +283,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
     public function temporaryUrl(string $path, \DateTimeInterface $expiresAt, Config $config): string
     {
         $permissions = $config->get("permissions", "r");
-        if (! is_string($permissions)) {
+        if (!is_string($permissions)) {
             throw new \InvalidArgumentException("permissions must be a string!");
         }
 
@@ -310,10 +310,14 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
             $properties = $this->containerClient
                 ->getBlobClient($this->prefixer->prefixPath($path))
                 ->getProperties();
-
-            return $properties->contentMD5;
         } catch (\Throwable $e) {
             throw new UnableToProvideChecksum($e->getMessage(), $path, $e);
         }
+
+        $md5 = $properties->contentMD5;
+        if ($md5 === null) {
+            throw new UnableToProvideChecksum(reason: 'File does not have a checksum set in Azure', path: $path);
+        }
+        return $md5;
     }
 }
