@@ -32,6 +32,7 @@
     "laravel/pint": "^1.16",
     "phpunit/phpunit": "^10.5",
     "phpstan/phpstan": "^1.11",
-    "league/flysystem-adapter-test-utilities": "^3.28"
+    "league/flysystem-adapter-test-utilities": "^3.28",
+    "rector/rector": "^1.2"
   }
 }
