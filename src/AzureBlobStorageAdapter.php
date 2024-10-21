@@ -262,7 +262,9 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
     {
         try {
             $this->copy($source, $destination, $config);
-            $this->delete($source);
+            if ($source !== $destination) {
+                $this->delete($source);
+            }
         } catch (\Throwable $e) {
             throw UnableToMoveFile::fromLocationTo($source, $destination, $e);
         }
