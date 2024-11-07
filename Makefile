@@ -10,6 +10,7 @@ help:
 
 .PHONY: install
 install: ## Install depedencies
+	docker compose run phpfpm rm -rf composer.lock
 	docker compose run phpfpm composer install
 
 .PHONY: cs
