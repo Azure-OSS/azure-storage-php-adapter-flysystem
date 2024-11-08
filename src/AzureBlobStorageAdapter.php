@@ -28,11 +28,12 @@ use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToRetrieveMetadata;
 use League\Flysystem\UnableToSetVisibility;
 use League\Flysystem\UnableToWriteFile;
+use League\Flysystem\UrlGeneration\PublicUrlGenerator;
 use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
 
-final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator
+final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator, PublicUrlGenerator
 {
     public const ON_VISIBILITY_THROW_ERROR = 'throw';
     public const ON_VISIBILITY_IGNORE = 'ignore';
@@ -278,6 +279,14 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
         } catch (\Throwable $e) {
             throw UnableToCopyFile::fromLocationTo($source, $destination, $e);
         }
+    }
+
+    /**
+     * @description Azure doesn't support permanent URLs. Instead, we create one that lasts 1000 years.
+     */
+    public function publicUrl(string $path, Config $config): string
+    {
+        return $this->temporaryUrl($path, (new \DateTimeImmutable())->modify("+1000 years"), $config);
     }
 
     public function temporaryUrl(string $path, \DateTimeInterface $expiresAt, Config $config): string
