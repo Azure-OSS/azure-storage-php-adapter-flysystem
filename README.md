@@ -14,6 +14,22 @@
 composer require azure-oss/storage-blob-flysystem
 ```
 
+## Quickstart
+
+```php
+use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\Storage\Blob\BlobServiceClient;
+use League\Flysystem\Filesystem;
+
+$blobServiceClient = BlobServiceClient::fromConnectionString('<connection-string>');
+$containerClient = $blobServiceClient->getContainerClient('quickstart');
+
+$adapter = new AzureBlobStorageAdapter($containerClient, "optional/prefix");
+$filesystem = new Filesystem($adapter);
+
+$filesystem->write('hello', 'world!');
+```
+
 ## Documentation
 
 For more information visit the documentation at [azure-oss.github.io](https://azure-oss.github.io/storage/flysystem/).
