@@ -4,10 +4,10 @@
 [![Packagist Downloads](https://img.shields.io/packagist/dm/azure-oss/storage-blob-flysystem)](https://packagist.org/packages/azure-oss/storage-blob-flysystem)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/azure-oss/azure-storage-php-adapter-flysystem/tests.yml?branch=main)](https://github.com/azure-oss/azure-storage-php-adapter-flysystem/actions)
 
-## Minimum Requirements
-
 > [!WARNING]
 > Data Lake Storage (Storage Account with hierarchical namespace enabled) is unsupported.
+
+## Minimum Requirements
 
 * PHP 8.1 or above
 * Required PHP extensions
