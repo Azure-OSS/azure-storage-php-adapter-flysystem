@@ -214,4 +214,45 @@ class AzureBlobStorageTest extends FilesystemAdapterTestCase
             $this->assertContains('dir1/dir2/dir3/file3.txt', $paths);
         });
     }
+
+    #[Test]
+    public function public_url_uses_direct_uri_when_enabled(): void
+    {
+        $this->givenWeHaveAnExistingFile('test-file.txt');
+
+        $adapter = new AzureBlobStorageAdapter(
+            self::createContainerClient(),
+            'flysystem',
+            useDirectPublicUrl: true,
+        );
+
+        $url = $adapter->publicUrl('test-file.txt', new Config());
+
+        // Direct URL should not contain SAS token parameters
+        $this->assertStringNotContainsString('sig=', $url);
+        $this->assertStringNotContainsString('se=', $url);
+        $this->assertStringNotContainsString('sp=', $url);
+
+        // But should contain the container and blob name
+        $this->assertStringContainsString('flysystem', $url);
+        $this->assertStringContainsString('test-file.txt', $url);
+    }
+
+    #[Test]
+    public function public_url_uses_sas_token_by_default(): void
+    {
+        $this->givenWeHaveAnExistingFile('test-file.txt');
+
+        $adapter = new AzureBlobStorageAdapter(
+            self::createContainerClient(),
+            'flysystem',
+        );
+
+        $url = $adapter->publicUrl('test-file.txt', new Config());
+
+        // URL with SAS token should contain these parameters
+        $this->assertStringContainsString('sig=', $url);
+        $this->assertStringContainsString('se=', $url);
+        $this->assertStringContainsString('sp=', $url);
+    }
 }
