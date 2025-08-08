@@ -190,4 +190,28 @@ class AzureBlobStorageTest extends FilesystemAdapterTestCase
 
         $adapter->setVisibility('some-file.md', 'public');
     }
+
+    #[Test]
+    public function listing_contents_deep(): void
+    {
+        $this->runScenario(function () {
+            $adapter = $this->adapter();
+
+            $adapter->write('dir1/file1.txt', 'content1', new Config());
+            $adapter->write('dir1/dir2/file2.txt', 'content2', new Config());
+            $adapter->write('dir1/dir2/dir3/file3.txt', 'content3', new Config());
+
+            $contents = iterator_to_array($adapter->listContents('', true));
+
+            $this->assertCount(6, $contents); // 3 files + 3 directories
+
+            $paths = array_map(fn($item) => $item->path(), $contents);
+            $this->assertContains('dir1', $paths);
+            $this->assertContains('dir1/file1.txt', $paths);
+            $this->assertContains('dir1/dir2', $paths);
+            $this->assertContains('dir1/dir2/file2.txt', $paths);
+            $this->assertContains('dir1/dir2/dir3', $paths);
+            $this->assertContains('dir1/dir2/dir3/file3.txt', $paths);
+        });
+    }
 }
