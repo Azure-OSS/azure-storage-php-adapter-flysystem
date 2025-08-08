@@ -46,6 +46,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
         string $prefix = "",
         ?MimeTypeDetector $mimeTypeDetector = null,
         private readonly string $visibilityHandling = self::ON_VISIBILITY_THROW_ERROR,
+        private readonly bool $useDirectPublicUrl = false,
     ) {
         $this->prefixer = new PathPrefixer($prefix);
         $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector();
@@ -284,10 +285,16 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
     }
 
     /**
-     * @description Azure doesn't support permanent URLs. Instead, we create one that lasts 1000 years.
+     * @description If useDirectPublicUrl is true, returns the direct public URL.
+     * Otherwise, Azure doesn't support permanent URLs, so we create one that lasts 1000 years.
      */
     public function publicUrl(string $path, Config $config): string
     {
+        if ($this->useDirectPublicUrl) {
+            $blobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($path));
+            return (string) $blobClient->uri;
+        }
+
         return $this->temporaryUrl($path, (new \DateTimeImmutable())->modify("+1000 years"), $config);
     }
 
