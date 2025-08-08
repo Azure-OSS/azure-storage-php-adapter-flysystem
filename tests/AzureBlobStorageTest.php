@@ -200,7 +200,7 @@ class AzureBlobStorageTest extends FilesystemAdapterTestCase
             $adapter->write('dir1/file1.txt', 'content1', new Config());
             $adapter->write('dir1/dir2/file2.txt', 'content2', new Config());
             $adapter->write('dir1/dir2/dir3/file3.txt', 'content3', new Config());
-
+            /** @phpstan-ignore-next-line */
             $contents = iterator_to_array($adapter->listContents('', true));
 
             $this->assertCount(6, $contents); // 3 files + 3 directories
