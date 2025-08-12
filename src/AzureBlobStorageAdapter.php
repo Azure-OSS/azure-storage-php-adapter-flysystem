@@ -230,17 +230,20 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
     {
         try {
             $prefix = $this->prefixer->prefixDirectoryPath($path);
+            $directories = [$prefix];
 
-            if ($deep) {
-                foreach ($this->containerClient->getBlobs($prefix) as $item) {
-                    yield $this->normalizeBlob($this->prefixer->stripPrefix($item->name), $item->properties);
-                }
-            } else {
-                foreach ($this->containerClient->getBlobsByHierarchy($prefix) as $item) {
+            while (!empty($directories)) {
+                $currentPrefix = array_shift($directories);
+
+                foreach ($this->containerClient->getBlobsByHierarchy($currentPrefix) as $item) {
                     if ($item instanceof Blob) {
                         yield $this->normalizeBlob($this->prefixer->stripPrefix($item->name), $item->properties);
                     } else {
                         yield new DirectoryAttributes($this->prefixer->stripPrefix($item->name));
+
+                        if ($deep) {
+                            $directories[] = $item->name;
+                        }
                     }
                 }
             }
