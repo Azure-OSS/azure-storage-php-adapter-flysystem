@@ -281,7 +281,7 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
             $sourceBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($source));
             $targetBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($destination));
 
-            $targetBlobClient->copyFromUri($sourceBlobClient->uri);
+            $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
         } catch (\Throwable $e) {
             throw UnableToCopyFile::fromLocationTo($source, $destination, $e);
         }
