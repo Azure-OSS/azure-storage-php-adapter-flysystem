@@ -63,8 +63,6 @@ When writing files, you can control the upload behavior via Flysystem's Config o
 - maximumTransferSize: int (bytes) — chunk size for block uploads.
 - maximumConcurrency: int — number of concurrent workers for parallel uploads.
 
-Important: The three options above must be provided as ints. If a non-int value is provided, a RuntimeException will be thrown.
-
 Example:
 
 ```php
@@ -78,9 +76,6 @@ $filesystem->write('path/to/file.txt', $contents, new Config([
 ```
 
 ### HTTP headers
-
-You can also provide HTTP headers to be stored with the blob by passing the `httpHeaders` config key.
-Example (array):
 
 ```php
 $filesystem->write('path/to/file.txt', $contents, new Config([
