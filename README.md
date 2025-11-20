@@ -55,6 +55,40 @@ $adapter = new AzureBlobStorageAdapter(
 );
 ```
 
+### Upload transfer tuning
+
+When writing files, you can control the upload behavior via Flysystem's Config on write/writeStream calls:
+
+- initialTransferSize: int (bytes) — size threshold for first transfer; smaller blobs are uploaded in a single request; larger ones switch to chunked upload.
+- maximumTransferSize: int (bytes) — chunk size for block uploads.
+- maximumConcurrency: int — number of concurrent workers for parallel uploads.
+
+Example:
+
+```php
+use League\Flysystem\Config;
+
+$filesystem->write('path/to/file.txt', $contents, new Config([
+    'initialTransferSize' => 64 * 1024 * 1024, // 64MB
+    'maximumTransferSize' => 8 * 1024 * 1024,  // 8MB
+    'maximumConcurrency'  => 8,
+]));
+```
+
+### HTTP headers
+
+```php
+$filesystem->write('path/to/file.txt', $contents, new Config([
+    'httpHeaders' => [
+        'cacheControl' => 'public, max-age=31536000',
+        'contentDisposition' => 'inline',
+        'contentEncoding' => 'gzip',
+        'contentLanguage' => 'en',
+        'contentType' => 'text/plain',
+    ],
+]));
+```
+
 Note that for direct public URLs to work, your container must be configured with public access. If your container is private, you should use the default SAS token approach.
 
 ## Documentation

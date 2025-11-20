@@ -32,6 +32,7 @@ use League\Flysystem\UrlGeneration\PublicUrlGenerator;
 use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
+use AzureOss\FlysystemAzureBlobStorage\Support\ConfigArrayParser;
 
 final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvider, TemporaryUrlGenerator, PublicUrlGenerator
 {
@@ -85,34 +86,95 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
 
     public function write(string $path, string $contents, Config $config): void
     {
-        $this->upload($path, $contents);
+        $this->upload($path, $contents, $config);
     }
 
     public function writeStream(string $path, $contents, Config $config): void
     {
-        $this->upload($path, $contents);
+        $this->upload($path, $contents, $config);
     }
 
     /**
      * @param string|resource $contents
      */
-    private function upload(string $path, $contents): void
+    private function upload(string $path, $contents, ?Config $config = null): void
     {
         try {
-            $path = $this->prefixer->prefixPath($path);
-            $mimetype = $this->mimeTypeDetector->detectMimetype($path, $contents);
+            $options = $this->buildUploadOptionsFromConfig($config);
 
-            $options = new UploadBlobOptions(
-                contentType: $mimetype,
-            );
+            if ($options->httpHeaders->contentType === "" && is_string($contents)) {
+                $options->httpHeaders->contentType = $this->mimeTypeDetector->detectMimeTypeFromBuffer($contents) ?? "";
+            }
 
             $this->containerClient
-                ->getBlobClient($path)
+                ->getBlobClient($this->prefixer->prefixPath($path))
                 ->upload($contents, $options);
         } catch (\Throwable $e) {
             throw UnableToWriteFile::atLocation($path, previous: $e);
         }
     }
+
+    private function buildUploadOptionsFromConfig(?Config $config): UploadBlobOptions
+    {
+        $options = new UploadBlobOptions();
+
+        if ($config === null) {
+            return $options;
+        }
+
+        $data = $config->toArray();
+
+        $initialTransferSize = ConfigArrayParser::parseIntFromArray($data, 'initialTransferSize');
+        if ($initialTransferSize !== null) {
+            $options->initialTransferSize = $initialTransferSize;
+        }
+
+        $maximumTransferSize = ConfigArrayParser::parseIntFromArray($data, 'maximumTransferSize');
+        if ($maximumTransferSize !== null) {
+            $options->maximumTransferSize = $maximumTransferSize;
+        }
+
+        $maximumConcurrency = ConfigArrayParser::parseIntFromArray($data, 'maximumConcurrency');
+        if ($maximumConcurrency !== null) {
+            $options->maximumConcurrency = $maximumConcurrency;
+        }
+
+        $headers = ConfigArrayParser::parseArrayFromArray($data, 'httpHeaders');
+        if ($headers !== null) {
+            $cacheControl = ConfigArrayParser::parseStringFromArray($headers, 'cacheControl', 'httpHeaders.');
+            if ($cacheControl !== null) {
+                $options->httpHeaders->cacheControl = $cacheControl;
+            }
+
+            $contentDisposition = ConfigArrayParser::parseStringFromArray($headers, 'contentDisposition', 'httpHeaders.');
+            if ($contentDisposition !== null) {
+                $options->httpHeaders->contentDisposition = $contentDisposition;
+            }
+
+            $contentEncoding = ConfigArrayParser::parseStringFromArray($headers, 'contentEncoding', 'httpHeaders.');
+            if ($contentEncoding !== null) {
+                $options->httpHeaders->contentEncoding = $contentEncoding;
+            }
+
+            $contentHash = ConfigArrayParser::parseStringFromArray($headers, 'contentHash', 'httpHeaders.');
+            if ($contentHash !== null) {
+                $options->httpHeaders->contentHash = $contentHash;
+            }
+
+            $contentLanguage = ConfigArrayParser::parseStringFromArray($headers, 'contentLanguage', 'httpHeaders.');
+            if ($contentLanguage !== null) {
+                $options->httpHeaders->contentLanguage = $contentLanguage;
+            }
+
+            $contentType = ConfigArrayParser::parseStringFromArray($headers, 'contentType', 'httpHeaders.');
+            if ($contentType !== null) {
+                $options->httpHeaders->contentType = $contentType;
+            }
+        }
+
+        return $options;
+    }
+
 
     public function read(string $path): string
     {
