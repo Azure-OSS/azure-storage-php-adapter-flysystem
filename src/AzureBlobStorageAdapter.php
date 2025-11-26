@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AzureOss\FlysystemAzureBlobStorage;
 
 use AzureOss\Storage\Blob\BlobContainerClient;
+use AzureOss\Storage\Blob\Exceptions\UnableToGenerateSasException;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
 use AzureOss\Storage\Blob\Models\GetBlobsOptions;
@@ -21,6 +22,7 @@ use League\Flysystem\UnableToCheckExistence;
 use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToDeleteDirectory;
 use League\Flysystem\UnableToDeleteFile;
+use League\Flysystem\UnableToGenerateTemporaryUrl;
 use League\Flysystem\UnableToListContents;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToProvideChecksum;
@@ -367,16 +369,20 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
     {
         $permissions = $config->get("permissions", "r");
         if (!is_string($permissions)) {
-            throw new \InvalidArgumentException("permissions must be a string!");
+            throw new UnableToGenerateTemporaryUrl("permissions must be a string!", $path);
         }
 
         $sasBuilder = BlobSasBuilder::new()
             ->setExpiresOn($expiresAt)
             ->setPermissions($permissions);
 
-        $sas = $this->containerClient
-            ->getBlobClient($this->prefixer->prefixPath($path))
-            ->generateSasUri($sasBuilder);
+        try {
+            $sas = $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->generateSasUri($sasBuilder);
+        } catch (UnableToGenerateSasException $exception) {
+            throw new UnableToGenerateTemporaryUrl($exception->getMessage(), $path, $exception);
+        }
 
         return (string) $sas;
     }
