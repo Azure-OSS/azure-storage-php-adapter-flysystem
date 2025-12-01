@@ -104,8 +104,8 @@ final class AzureBlobStorageAdapter implements FilesystemAdapter, ChecksumProvid
         try {
             $options = $this->buildUploadOptionsFromConfig($config);
 
-            if ($options->httpHeaders->contentType === "" && is_string($contents)) {
-                $options->httpHeaders->contentType = $this->mimeTypeDetector->detectMimeTypeFromBuffer($contents) ?? "";
+            if ($options->httpHeaders->contentType === "" ) {
+                $options->httpHeaders->contentType = $this->mimeTypeDetector->detectMimeType($path, $contents) ?? "";
             }
 
             $this->containerClient
