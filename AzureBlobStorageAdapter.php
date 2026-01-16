@@ -1,0 +1,430 @@
+<?php
+
+declare(strict_types=1);
+
+namespace AzureOss\Storage\BlobFlysystem;
+
+use AzureOss\Storage\Blob\BlobContainerClient;
+use AzureOss\Storage\Blob\Exceptions\UnableToGenerateSasException;
+use AzureOss\Storage\Blob\Models\Blob;
+use AzureOss\Storage\Blob\Models\BlobProperties;
+use AzureOss\Storage\Blob\Models\GetBlobsOptions;
+use AzureOss\Storage\Blob\Models\UploadBlobOptions;
+use AzureOss\Storage\Blob\Sas\BlobSasBuilder;
+use AzureOss\Storage\BlobFlysystem\Support\ConfigArrayParser;
+use League\Flysystem\ChecksumAlgoIsNotSupported;
+use League\Flysystem\ChecksumProvider;
+use League\Flysystem\Config;
+use League\Flysystem\DirectoryAttributes;
+use League\Flysystem\FileAttributes;
+use League\Flysystem\FilesystemAdapter;
+use League\Flysystem\PathPrefixer;
+use League\Flysystem\UnableToCheckExistence;
+use League\Flysystem\UnableToCopyFile;
+use League\Flysystem\UnableToDeleteDirectory;
+use League\Flysystem\UnableToDeleteFile;
+use League\Flysystem\UnableToGenerateTemporaryUrl;
+use League\Flysystem\UnableToListContents;
+use League\Flysystem\UnableToMoveFile;
+use League\Flysystem\UnableToProvideChecksum;
+use League\Flysystem\UnableToReadFile;
+use League\Flysystem\UnableToRetrieveMetadata;
+use League\Flysystem\UnableToSetVisibility;
+use League\Flysystem\UnableToWriteFile;
+use League\Flysystem\UrlGeneration\PublicUrlGenerator;
+use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
+use League\MimeTypeDetection\FinfoMimeTypeDetector;
+use League\MimeTypeDetection\MimeTypeDetector;
+
+final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapter, PublicUrlGenerator, TemporaryUrlGenerator
+{
+    public const ON_VISIBILITY_THROW_ERROR = 'throw';
+
+    public const ON_VISIBILITY_IGNORE = 'ignore';
+
+    private readonly MimeTypeDetector $mimeTypeDetector;
+
+    private readonly PathPrefixer $prefixer;
+
+    public function __construct(
+        private readonly BlobContainerClient $containerClient,
+        string $prefix = '',
+        ?MimeTypeDetector $mimeTypeDetector = null,
+        private readonly string $visibilityHandling = self::ON_VISIBILITY_THROW_ERROR,
+        private readonly bool $useDirectPublicUrl = false,
+    ) {
+        $this->prefixer = new PathPrefixer($prefix);
+        $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector;
+    }
+
+    public function fileExists(string $path): bool
+    {
+        try {
+            return $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->exists();
+        } catch (\Throwable $e) {
+            throw UnableToCheckExistence::forLocation($path, $e);
+        }
+    }
+
+    public function directoryExists(string $path): bool
+    {
+        try {
+            $options = new GetBlobsOptions(pageSize: 1);
+
+            foreach (
+                $this->containerClient->getBlobs(
+                    $this->prefixer->prefixDirectoryPath($path),
+                    $options,
+                ) as $ignored
+            ) {
+                return true;
+            }
+
+            return false;
+        } catch (\Throwable $e) {
+            throw UnableToCheckExistence::forLocation($path, $e);
+        }
+    }
+
+    public function write(string $path, string $contents, Config $config): void
+    {
+        $this->upload($path, $contents, $config);
+    }
+
+    public function writeStream(string $path, $contents, Config $config): void
+    {
+        $this->upload($path, $contents, $config);
+    }
+
+    /**
+     * @param  string|resource  $contents
+     */
+    private function upload(string $path, $contents, ?Config $config = null): void
+    {
+        try {
+            $options = $this->buildUploadOptionsFromConfig($config);
+
+            if ($options->httpHeaders->contentType === '') {
+                $options->httpHeaders->contentType = $this->mimeTypeDetector->detectMimeType($path, $contents) ?? '';
+            }
+
+            $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->upload($contents, $options);
+        } catch (\Throwable $e) {
+            throw UnableToWriteFile::atLocation($path, previous: $e);
+        }
+    }
+
+    private function buildUploadOptionsFromConfig(?Config $config): UploadBlobOptions
+    {
+        $options = new UploadBlobOptions;
+
+        if ($config === null) {
+            return $options;
+        }
+
+        /** @var array<string, mixed> $data */
+        $data = $config->toArray();
+
+        $initialTransferSize = ConfigArrayParser::parseIntFromArray($data, 'initialTransferSize');
+        if ($initialTransferSize !== null) {
+            $options->initialTransferSize = $initialTransferSize;
+        }
+
+        $maximumTransferSize = ConfigArrayParser::parseIntFromArray($data, 'maximumTransferSize');
+        if ($maximumTransferSize !== null) {
+            $options->maximumTransferSize = $maximumTransferSize;
+        }
+
+        $maximumConcurrency = ConfigArrayParser::parseIntFromArray($data, 'maximumConcurrency');
+        if ($maximumConcurrency !== null) {
+            $options->maximumConcurrency = $maximumConcurrency;
+        }
+
+        $headers = ConfigArrayParser::parseArrayFromArray($data, 'httpHeaders');
+        if ($headers !== null) {
+            $cacheControl = ConfigArrayParser::parseStringFromArray($headers, 'cacheControl', 'httpHeaders.');
+            if ($cacheControl !== null) {
+                $options->httpHeaders->cacheControl = $cacheControl;
+            }
+
+            $contentDisposition = ConfigArrayParser::parseStringFromArray($headers, 'contentDisposition', 'httpHeaders.');
+            if ($contentDisposition !== null) {
+                $options->httpHeaders->contentDisposition = $contentDisposition;
+            }
+
+            $contentEncoding = ConfigArrayParser::parseStringFromArray($headers, 'contentEncoding', 'httpHeaders.');
+            if ($contentEncoding !== null) {
+                $options->httpHeaders->contentEncoding = $contentEncoding;
+            }
+
+            $contentHash = ConfigArrayParser::parseStringFromArray($headers, 'contentHash', 'httpHeaders.');
+            if ($contentHash !== null) {
+                $options->httpHeaders->contentHash = $contentHash;
+            }
+
+            $contentLanguage = ConfigArrayParser::parseStringFromArray($headers, 'contentLanguage', 'httpHeaders.');
+            if ($contentLanguage !== null) {
+                $options->httpHeaders->contentLanguage = $contentLanguage;
+            }
+
+            $contentType = ConfigArrayParser::parseStringFromArray($headers, 'contentType', 'httpHeaders.');
+            if ($contentType !== null) {
+                $options->httpHeaders->contentType = $contentType;
+            }
+        }
+
+        return $options;
+    }
+
+    public function read(string $path): string
+    {
+        try {
+            $result = $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->downloadStreaming();
+
+            return $result->content->getContents();
+        } catch (\Throwable $e) {
+            throw UnableToReadFile::fromLocation($path, previous: $e);
+        }
+    }
+
+    public function readStream(string $path)
+    {
+        try {
+            $result = $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->downloadStreaming();
+
+            $resource = $result->content->detach();
+
+            if ($resource === null) {
+                throw new \Exception('Should not happen');
+            }
+
+            return $resource;
+        } catch (\Throwable $e) {
+            throw UnableToReadFile::fromLocation($path, previous: $e);
+        }
+    }
+
+    public function delete(string $path): void
+    {
+        try {
+            $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->deleteIfExists();
+        } catch (\Throwable $e) {
+            throw UnableToDeleteFile::atLocation($path, previous: $e);
+        }
+    }
+
+    public function deleteDirectory(string $path): void
+    {
+        try {
+            foreach ($this->listContents($path, true) as $item) {
+                if ($item instanceof FileAttributes) {
+                    $this->containerClient
+                        ->getBlobClient($this->prefixer->prefixPath($item->path()))
+                        ->delete();
+                }
+            }
+        } catch (\Throwable $e) {
+            throw UnableToDeleteDirectory::atLocation($path, previous: $e);
+        }
+    }
+
+    public function createDirectory(string $path, Config $config): void
+    {
+        // Azure does not support this operation.
+    }
+
+    public function setVisibility(string $path, string $visibility): void
+    {
+        if ($this->visibilityHandling === self::ON_VISIBILITY_THROW_ERROR) {
+            throw UnableToSetVisibility::atLocation($path, 'Azure does not support this operation.');
+        }
+    }
+
+    public function visibility(string $path): FileAttributes
+    {
+        throw UnableToRetrieveMetadata::visibility($path, 'Azure does not support this operation.');
+    }
+
+    public function mimeType(string $path): FileAttributes
+    {
+        try {
+            return $this->fetchMetadata($path);
+        } catch (\Throwable $e) {
+            throw UnableToRetrieveMetadata::mimeType($path, previous: $e);
+        }
+    }
+
+    public function lastModified(string $path): FileAttributes
+    {
+        try {
+            return $this->fetchMetadata($path);
+        } catch (\Throwable $e) {
+            throw UnableToRetrieveMetadata::lastModified($path, previous: $e);
+        }
+    }
+
+    public function fileSize(string $path): FileAttributes
+    {
+        try {
+            return $this->fetchMetadata($path);
+        } catch (\Throwable $e) {
+            throw UnableToRetrieveMetadata::lastModified($path, previous: $e);
+        }
+    }
+
+    private function fetchMetadata(string $path): FileAttributes
+    {
+        $path = $this->prefixer->prefixPath($path);
+
+        $properties = $this->containerClient
+            ->getBlobClient($path)
+            ->getProperties();
+
+        return $this->normalizeBlob($path, $properties);
+    }
+
+    public function listContents(string $path, bool $deep): iterable
+    {
+        try {
+            $prefix = $this->prefixer->prefixDirectoryPath($path);
+            $directories = [$prefix];
+
+            while (count($directories) > 0) {
+                $currentPrefix = array_shift($directories);
+
+                foreach ($this->containerClient->getBlobsByHierarchy($currentPrefix) as $item) {
+                    if ($item instanceof Blob) {
+                        yield $this->normalizeBlob($this->prefixer->stripPrefix($item->name), $item->properties);
+                    } else {
+                        yield new DirectoryAttributes($this->prefixer->stripPrefix($item->name));
+
+                        if ($deep) {
+                            $directories[] = $item->name;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            throw UnableToListContents::atLocation($path, $deep, $e);
+        }
+    }
+
+    private function normalizeBlob(string $name, BlobProperties $properties): FileAttributes
+    {
+        return new FileAttributes(
+            $name,
+            fileSize: $properties->contentLength,
+            lastModified: $properties->lastModified->getTimestamp(),
+            mimeType: $properties->contentType,
+        );
+    }
+
+    public function move(string $source, string $destination, Config $config): void
+    {
+        try {
+            $this->copy($source, $destination, $config);
+            if ($source !== $destination) {
+                $this->delete($source);
+            }
+        } catch (\Throwable $e) {
+            throw UnableToMoveFile::fromLocationTo($source, $destination, $e);
+        }
+    }
+
+    public function copy(string $source, string $destination, Config $config): void
+    {
+        try {
+            $sourceBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($source));
+            $targetBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($destination));
+
+            $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
+        } catch (\Throwable $e) {
+            throw UnableToCopyFile::fromLocationTo($source, $destination, $e);
+        }
+    }
+
+    /**
+     * @description If useDirectPublicUrl is true, returns the direct public URL.
+     * Otherwise, Azure doesn't support permanent URLs, so we create one that lasts 1000 years.
+     */
+    public function publicUrl(string $path, Config $config): string
+    {
+        if ($this->useDirectPublicUrl) {
+            $blobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($path));
+
+            return (string) $blobClient->uri;
+        }
+
+        return $this->temporaryUrl($path, (new \DateTimeImmutable)->modify('+1000 years'), $config);
+    }
+
+    public function temporaryUrl(string $path, \DateTimeInterface $expiresAt, Config $config): string
+    {
+        $permissions = $config->get('permissions', 'r');
+        if (! is_string($permissions)) {
+            throw new UnableToGenerateTemporaryUrl('permissions must be a string!', $path);
+        }
+
+        $sasBuilder = BlobSasBuilder::new()
+            ->setExpiresOn($expiresAt)
+            ->setPermissions($permissions);
+
+        try {
+            $sas = $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->generateSasUri($sasBuilder);
+        } catch (UnableToGenerateSasException $exception) {
+            throw new UnableToGenerateTemporaryUrl($exception->getMessage(), $path, $exception);
+        }
+
+        return (string) $sas;
+    }
+
+    public function checksum(string $path, Config $config): string
+    {
+        $algo = $config->get('checksum_algo', 'md5');
+
+        if ($algo !== 'md5') {
+            throw new ChecksumAlgoIsNotSupported;
+        }
+
+        try {
+            $properties = $this->containerClient
+                ->getBlobClient($this->prefixer->prefixPath($path))
+                ->getProperties();
+        } catch (\Throwable $e) {
+            throw new UnableToProvideChecksum($e->getMessage(), $path, $e);
+        }
+
+        $md5 = $properties->contentMD5;
+        if ($md5 === null) {
+            throw new UnableToProvideChecksum(reason: 'File does not have a checksum set in Azure', path: $path);
+        }
+
+        return $md5;
+    }
+}
+
+if (! class_exists('AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter', false)) {
+    class_alias(AzureBlobStorageAdapter::class, 'AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter');
+
+    @trigger_error(
+        sprintf(
+            'The class "%s" from the "azure-oss/storage-blob-flysystem" package is deprecated since version 1.0 and will be removed in 2.0. '
+            .'Use "%s" from "league/flysystem-azure-blob-storage" instead.',
+            'AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter',
+            AzureBlobStorageAdapter::class,
+        ),
+        E_USER_DEPRECATED,
+    );
+}
