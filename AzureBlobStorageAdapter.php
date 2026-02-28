@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AzureOss\Storage\BlobFlysystem;
 
+use AzureOss\Storage\Blob\BlobClient;
 use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\UnableToGenerateSasException;
 use AzureOss\Storage\Blob\Models\Blob;
@@ -347,10 +348,40 @@ final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapt
             $sourceBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($source));
             $targetBlobClient = $this->containerClient->getBlobClient($this->prefixer->prefixPath($destination));
 
-            $targetBlobClient->syncCopyFromUri($sourceBlobClient->uri);
+            if ($this->isPublicContainer) {
+                $this->copyServerToServerWithPublicUrl($targetBlobClient, $sourceBlobClient);
+            } elseif ($sourceBlobClient->canGenerateSasUri()) {
+                $this->copyServerToServerWithSas($targetBlobClient, $sourceBlobClient);
+            } else {
+                $this->copyClientSide($sourceBlobClient, $targetBlobClient);
+            }
         } catch (\Throwable $e) {
             throw UnableToCopyFile::fromLocationTo($source, $destination, $e);
         }
+    }
+
+    private function copyServerToServerWithPublicUrl(BlobClient $targetBlobClient, BlobClient $sourceBlobClient): void
+    {
+        $targetBlobClient->startCopyFromUri($sourceBlobClient->uri);
+        $targetBlobClient->waitForCopyCompletion();
+    }
+
+    private function copyServerToServerWithSas(BlobClient $targetBlobClient, BlobClient $sourceBlobClient): void
+    {
+        $sourceSas = $sourceBlobClient->generateSasUri(
+            BlobSasBuilder::new()
+                ->setPermissions('r')
+                ->setExpiresOn((new \DateTime)->modify('+1 hour')),
+        );
+
+        $targetBlobClient->startCopyFromUri($sourceSas);
+        $targetBlobClient->waitForCopyCompletion();
+    }
+
+    private function copyClientSide(BlobClient $sourceBlobClient, BlobClient $targetBlobClient): void
+    {
+        $stream = $sourceBlobClient->downloadStreaming();
+        $targetBlobClient->upload($stream->content);
     }
 
     /**
