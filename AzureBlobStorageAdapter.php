@@ -414,17 +414,3 @@ final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapt
         return $md5;
     }
 }
-
-if (! class_exists('AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter', false)) {
-    class_alias(AzureBlobStorageAdapter::class, 'AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter');
-
-    @trigger_error(
-        sprintf(
-            'The class "%s" from the "azure-oss/storage-blob-flysystem" package is deprecated since version 1.0 and will be removed in 2.0. '
-            .'Use "%s" from "league/flysystem-azure-blob-storage" instead.',
-            'AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter',
-            AzureBlobStorageAdapter::class,
-        ),
-        E_USER_DEPRECATED,
-    );
-}
