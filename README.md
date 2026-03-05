@@ -24,11 +24,12 @@ composer require azure-oss/storage-blob-flysystem
 This package provides a Flysystem adapter for Azure Blob Storage. It implements the Flysystem v3 adapter interface, allowing you to use Azure Blob Storage with any library that supports Flysystem.
 
 ```php
-use AzureOss\Storage\Blob\BlobContainerClient;
+use AzureOss\Storage\Blob\BlobServiceClient;
 use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use League\Flysystem\Filesystem;
 
-$containerClient = BlobContainerClient::fromConnectionString('<connection string>', 'container-name');
+$serviceClient = BlobServiceClient::fromConnectionString('<connection string>');
+$containerClient = $serviceClient->getContainerClient('container-name');
 $adapter = new AzureBlobStorageAdapter($containerClient);
 $filesystem = new Filesystem($adapter);
 
