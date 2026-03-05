@@ -26,6 +26,7 @@ This package provides a Flysystem adapter for Azure Blob Storage. It implements 
 ```php
 use AzureOss\Storage\Blob\BlobServiceClient;
 use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
+use League\Flysystem\Config;
 use League\Flysystem\Filesystem;
 
 $serviceClient = BlobServiceClient::fromConnectionString('<connection string>');
@@ -45,6 +46,32 @@ If your container is configured for public access, you can enable direct public 
 ```php
 $adapter = new AzureBlobStorageAdapter($containerClient, isPublicContainer: true);
 ```
+
+## Upload Options (HTTP Headers)
+
+You can set blob HTTP headers (including `Cache-Control`) by passing a `Config` instance when writing:
+
+```php
+$filesystem->write(
+    'assets/app.css',
+    $css,
+    new Config([
+        'httpHeaders' => [
+            'cacheControl' => 'public, max-age=31536000',
+            'contentType' => 'text/css',
+        ],
+    ]),
+);
+```
+
+Supported `httpHeaders` keys:
+
+* `cacheControl`
+* `contentDisposition`
+* `contentEncoding`
+* `contentHash`
+* `contentLanguage`
+* `contentType`
 
 ## Documentation
 
