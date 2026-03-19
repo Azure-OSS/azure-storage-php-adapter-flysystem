@@ -19,10 +19,16 @@ Our other packages:
 - **[azure-oss/storage-blob-laravel](https://packagist.org/packages/azure-oss/storage-blob-laravel)** – Laravel filesystem driver  
   ![Downloads](https://img.shields.io/packagist/dt/azure-oss/storage-blob-laravel)
 
+- **[azure-oss/storage-queue](https://packagist.org/packages/azure-oss/storage-queue)** – Azure Storage Queue SDK  
+  ![Downloads](https://img.shields.io/packagist/dt/azure-oss/storage-queue)
+
+- **[azure-oss/storage-queue-laravel](https://packagist.org/packages/azure-oss/storage-queue-laravel)** – Laravel Queue connector  
+  ![Downloads](https://img.shields.io/packagist/dt/azure-oss/storage-queue-laravel)
+
 ## Install
 
 ```shell
-composer require azure-oss/storage-blob-flysystem`.
+composer require azure-oss/storage-blob-flysystem
 ```
 
 ## Documentation
