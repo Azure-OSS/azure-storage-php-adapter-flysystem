@@ -410,6 +410,51 @@ final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapt
             ->setExpiresOn($expiresAt)
             ->setPermissions($permissions);
 
+        $httpHeaders = $config->get('httpHeaders', []);
+        if (! is_array($httpHeaders)) {
+            throw new UnableToGenerateTemporaryUrl('httpHeaders must be an array!', $path);
+        }
+
+        $cacheControl = $httpHeaders['cacheControl'] ?? null;
+        if ($cacheControl !== null) {
+            if (! is_string($cacheControl)) {
+                throw new UnableToGenerateTemporaryUrl('cacheControl must be a string!', $path);
+            }
+            $sasBuilder->setCacheControl($cacheControl);
+        }
+
+        $contentDisposition = $httpHeaders['contentDisposition'] ?? null;
+        if ($contentDisposition !== null) {
+            if (! is_string($contentDisposition)) {
+                throw new UnableToGenerateTemporaryUrl('contentDisposition must be a string!', $path);
+            }
+            $sasBuilder->setContentDisposition($contentDisposition);
+        }
+
+        $contentEncoding = $httpHeaders['contentEncoding'] ?? null;
+        if ($contentEncoding !== null) {
+            if (! is_string($contentEncoding)) {
+                throw new UnableToGenerateTemporaryUrl('contentEncoding must be a string!', $path);
+            }
+            $sasBuilder->setContentEncoding($contentEncoding);
+        }
+
+        $contentLanguage = $httpHeaders['contentLanguage'] ?? null;
+        if ($contentLanguage !== null) {
+            if (! is_string($contentLanguage)) {
+                throw new UnableToGenerateTemporaryUrl('contentLanguage must be a string!', $path);
+            }
+            $sasBuilder->setContentLanguage($contentLanguage);
+        }
+
+        $contentType = $httpHeaders['contentType'] ?? null;
+        if ($contentType !== null) {
+            if (! is_string($contentType)) {
+                throw new UnableToGenerateTemporaryUrl('contentType must be a string!', $path);
+            }
+            $sasBuilder->setContentType($contentType);
+        }
+
         try {
             $sas = $this->containerClient
                 ->getBlobClient($this->prefixer->prefixPath($path))
