@@ -12,4 +12,6 @@ composer require azure-oss/storage-blob-flysystem:^2.0
 
 This release also requires `azure-oss/storage-blob:^2.0`. Composer will update that dependency automatically unless your application requires `azure-oss/storage-blob` directly, in which case update that constraint too.
 
-No code changes are required for this upgrade.
+### Removed class aliases
+
+The backwards-compatible Flysystem adapter alias has been removed. Import `AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter` directly instead of `AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter`.

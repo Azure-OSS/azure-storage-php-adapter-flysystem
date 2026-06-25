@@ -16,10 +16,7 @@
   "autoload": {
     "psr-4": {
       "AzureOss\\Storage\\BlobFlysystem\\": ""
-    },
-    "files": [
-      "aliases.php"
-    ]
+    }
   },
   "require": {
     "php": "^8.2",
