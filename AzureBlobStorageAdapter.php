@@ -9,10 +9,12 @@ use AzureOss\Storage\Blob\BlobContainerClient;
 use AzureOss\Storage\Blob\Exceptions\UnableToGenerateSasException;
 use AzureOss\Storage\Blob\Models\Blob;
 use AzureOss\Storage\Blob\Models\BlobProperties;
+use AzureOss\Storage\Blob\Models\BlobRequestConditions;
 use AzureOss\Storage\Blob\Models\GetBlobsOptions;
 use AzureOss\Storage\Blob\Models\UploadBlobOptions;
 use AzureOss\Storage\Blob\Sas\BlobSasBuilder;
 use AzureOss\Storage\BlobFlysystem\Support\ConfigArrayParser;
+use AzureOss\Storage\Common\Models\ETag;
 use League\Flysystem\ChecksumAlgoIsNotSupported;
 use League\Flysystem\ChecksumProvider;
 use League\Flysystem\Config;
@@ -146,6 +148,19 @@ final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapt
         $maximumConcurrency = ConfigArrayParser::parseIntFromArray($data, 'maximumConcurrency');
         if ($maximumConcurrency !== null) {
             $options->maximumConcurrency = $maximumConcurrency;
+        }
+
+        $conditions = ConfigArrayParser::parseArrayFromArray($data, 'conditions');
+        if ($conditions !== null) {
+            $ifMatch = ConfigArrayParser::parseStringFromArray($conditions, 'ifMatch', 'conditions.');
+            $ifNoneMatch = ConfigArrayParser::parseStringFromArray($conditions, 'ifNoneMatch', 'conditions.');
+            $leaseId = ConfigArrayParser::parseStringFromArray($conditions, 'leaseId', 'conditions.');
+
+            $options->conditions = new BlobRequestConditions(
+                ifMatch: $ifMatch !== null ? new ETag($ifMatch) : null,
+                ifNoneMatch: $ifNoneMatch !== null ? new ETag($ifNoneMatch) : null,
+                leaseId: $leaseId,
+            );
         }
 
         $headers = ConfigArrayParser::parseArrayFromArray($data, 'httpHeaders');

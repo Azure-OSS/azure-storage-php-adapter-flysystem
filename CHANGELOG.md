@@ -2,4 +2,6 @@
 
 ## Unreleased
 
-No user-facing changes since `2.0.0`.
+### Added
+
+- Added ETag- and lease-aware writes through the `conditions` write option.
