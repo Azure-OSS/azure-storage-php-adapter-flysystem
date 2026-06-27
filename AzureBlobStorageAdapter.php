@@ -37,6 +37,9 @@ use League\Flysystem\UrlGeneration\TemporaryUrlGenerator;
 use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use League\MimeTypeDetection\MimeTypeDetector;
 
+/**
+ * Exposes an Azure Blob Storage container as a Flysystem filesystem adapter.
+ */
 final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapter, PublicUrlGenerator, TemporaryUrlGenerator
 {
     public const ON_VISIBILITY_THROW_ERROR = 'throw';
