@@ -21,6 +21,6 @@
   "require": {
     "php": "^8.2",
     "league/flysystem": "^3.28",
-    "azure-oss/storage-blob": "^2.1"
+    "azure-oss/storage-blob": "^2.2"
   }
 }
