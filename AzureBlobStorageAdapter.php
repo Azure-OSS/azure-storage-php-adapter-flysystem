@@ -343,7 +343,7 @@ final class AzureBlobStorageAdapter implements ChecksumProvider, FilesystemAdapt
         return new FileAttributes(
             $name,
             fileSize: $properties->contentLength,
-            lastModified: $properties->lastModified->getTimestamp(),
+            lastModified: $properties->lastModified?->getTimestamp(),
             mimeType: $properties->contentType,
         );
     }
